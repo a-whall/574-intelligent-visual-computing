@@ -56,21 +56,29 @@ def sphere(center, R, X, Y, Z):
 
 def showMeshReconstruction(IF):
     """
-    calls marching cubes on the input implicit function sampled in the 3D grid
-    and shows the reconstruction mesh
+    Calls marching cubes on the implicit function passed as an argument
+    sampled in the 3D grid and shows the reconstruction mesh.
+
     Args:
         IF    : implicit function sampled at the grid points
-    """    
-    verts, triangles, normals, values = measure.marching_cubes(IF, 0)        
+    """
+    # Extract the surface mesh from the implicit-surface.
+    verts, triangles, normals, values = measure.marching_cubes(IF, 0)
 
-    # Create an empty triangle mesh
+    # Create an empty triangle mesh.
     mesh = o3d.geometry.TriangleMesh()
-    # Use mesh.vertex to access the vertices' attributes    
+
+    # Use mesh.vertex to access the vertices' attributes.
     mesh.vertices = o3d.utility.Vector3dVector(verts)
-    # Use mesh.triangle to access the triangles' attributes    
+
+    # Use mesh.triangle to access the triangles' attributes.
     mesh.triangles = o3d.utility.Vector3iVector(triangles.astype(np.int32))
-    mesh.compute_vertex_normals()        
-    o3d.visualization.draw_geometries([mesh])   
+
+    # Compute normals for shading.
+    mesh.compute_vertex_normals()
+
+    # Show the result with Open3D renderer.
+    o3d.visualization.draw_geometries([mesh])
 
 def mlsReconstruction(points, normals, X, Y, Z):
     """
