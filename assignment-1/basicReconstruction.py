@@ -4,28 +4,37 @@ from skimage import measure
 from sklearn.neighbors import KDTree
 import open3d as o3d;
 
-def createGrid(points, resolution=96):
+def createGrid(points, resolution=64):
     """
-    constructs a 3D grid containing the point cloud
-    each grid point will store the implicit function value
+    Constructs a 3D grid containing the point cloud.
+    Each grid point will store the implicit function value.
+
     Args:
         points: 3D points of the point cloud
-        resolution: grid resolution i.e., grid will be NxNxN where N=resolution
-                    set N=16 for quick debugging, use *N=64* for reporting results
-    Returns: 
-        X,Y,Z coordinates of grid vertices     
-        max and min dimensions of the bounding box of the point cloud                 
+        resolution: grid resolution, i.e. grid will be NxNxN where N=resolution
+            set N=16 for quick debugging, use *N=64* for reporting results
+
+    Returns:
+        X,Y,Z coordinates of grid vertices
+        max and min dimensions of the bounding box of the point cloud
     """
-    max_dimensions = np.max(points,axis=0) # largest x, largest y, largest z coordinates among all surface points
-    min_dimensions = np.min(points,axis=0) # smallest x, smallest y, smallest z coordinates among all surface points    
-    bounding_box_dimensions = max_dimensions - min_dimensions # com6pute the bounding box dimensions of the point cloud
-    max_dimensions = max_dimensions + bounding_box_dimensions/10  # extend bounding box to fit surface (if it slightly extends beyond the point cloud)
-    min_dimensions = min_dimensions - bounding_box_dimensions/10
-    X, Y, Z = np.meshgrid( np.linspace(min_dimensions[0], max_dimensions[0], resolution),
-                           np.linspace(min_dimensions[1], max_dimensions[1], resolution),
-                           np.linspace(min_dimensions[2], max_dimensions[2], resolution) )    
-    
-    return X, Y, Z, max_dimensions, min_dimensions
+    # Largest, Smallest xyz coordinates among all surface points, respectively.
+    max_xyz, min_xyz = np.max(points, axis=0), np.min(points, axis=0)
+
+    # Compute the bounding box dimensions of the point cloud.
+    bounding_box_dimensions = max_xyz - min_xyz
+
+    # Extend the bounding box to fit the surface.
+    max_xyz = max_xyz + bounding_box_dimensions / 10
+    min_xyz = min_xyz - bounding_box_dimensions / 10
+
+    # Generate the grid points.
+    X, Y, Z = np.meshgrid(
+        np.linspace(min_xyz[0], max_xyz[0], resolution),
+        np.linspace(min_xyz[1], max_xyz[1], resolution),
+        np.linspace(min_xyz[2], max_xyz[2], resolution)
+    )
+    return X, Y, Z, max_xyz, min_xyz
 
 def sphere(center, R, X, Y, Z):
     """
