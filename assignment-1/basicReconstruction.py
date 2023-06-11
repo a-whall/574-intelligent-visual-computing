@@ -119,36 +119,47 @@ def naiveReconstruction(points, normals, X, Y, Z):
 
 def mlsReconstruction(points, normals, X, Y, Z):
     """
-    surface reconstruction with an implicit function f(x,y,z) representing
-    MLS distance to the tangent plane of the input surface points 
-    The method shows reconstructed mesh
+    Surface reconstruction with an implicit function f(x,y,z) representing
+    Minimum-Least-Squares distance to the tangent plane of the input surface points.
+    The returned implicit function will be used to show the reconstructed mesh.
+
     Args:
-        points :  points of the point cloud
-		normals:  normals of the point cloud
-		X,Y,Z  :  coordinates of grid vertices 
+        input: Filename of a point cloud.
     Returns:
-        IF     :  implicit function sampled at the grid points
+        IF: Implicit Function, sampled at regular grid points.
     """
-
     ################################################
-    # <================START CODE<================>
+    # ================ START CODE ================ #
     ################################################
-     
-    # replace this random implicit function with your MLS implementation!
-    IF = np.random.rand(X.shape[0], X.shape[1], X.shape[2]) - 0.5
 
-    # this is an example of a kd-tree nearest neighbor search (adapt it accordingly for your task)
-	# use kd-trees to find nearest neighbors efficiently!
-	# kd-tree: https://en.wikipedia.org/wiki/K-d_tree
     Q = np.array([X.reshape(-1), Y.reshape(-1), Z.reshape(-1)]).transpose()
-    tree = KDTree(points)
-    _, idx = tree.query(Q, k=2)  
-	
+
+    kd_tree = KDTree(points, metric='euclidean')
+
+    # Get 50 nearest surface points to each grid point.
+    NN_distances, NN_indices = kd_tree.query(Q, k=50)
+
+    # Get distance of the 2 nearest neighboring surface points for each surface point.
+    inter_surface_distances, _ = kd_tree.query(points, k=2)
+
+    # Index 1 is used because the distance to itself is 0 and thus the NN is itself.
+    sq_inv_ꞵ = 1 / (2*sum(d[1] for d in inter_surface_distances)/len(points)) ** 2
+
+    def dist_to_tangent_plane(q_i, v_i):
+        return normals[v_i].dot((Q[q_i] - points[v_i]).T)
+
+    IF = np.empty(X.shape)
+    for y in range(X.shape[0]):
+        for x in range(X.shape[1]):
+            for z in range(X.shape[2]):
+                q_i = y * X.shape[1]**2 + x * X.shape[0] + z
+                φ = np.exp(-NN_distances[q_i]**2 * sq_inv_ꞵ)
+                d = [dist_to_tangent_plane(q_i, v_i) for v_i in NN_indices[q_i]]
+                IF[x][y][z] = sum(d * φ) / sum(φ)
 
     ################################################
-    # <================END CODE<================>
+    # ================ END CODE ================== #
     ################################################
-
     return IF 
 
 if __name__ == '__main__':
