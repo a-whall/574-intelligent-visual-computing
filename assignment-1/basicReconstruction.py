@@ -80,6 +80,43 @@ def showMeshReconstruction(IF):
     # Show the result with Open3D renderer.
     o3d.visualization.draw_geometries([mesh])
 
+def naiveReconstruction(points, normals, X, Y, Z):
+    """
+    Performs surface reconstruction with an implicit function f(x,y,z) representing the
+    signed distance to the tangent plane of the surface point nearest to each point (x,y,z).
+
+    Args:
+        input: filename of a point cloud.
+    Returns:
+        IF: implicit function sampled at the grid points.
+    """
+    ################################################
+    # ================ START CODE ================ #
+    ################################################
+
+    # Create a Vertex-array that contains every 3D grid point.
+    Q = np.array([X.reshape(-1), Y.reshape(-1), Z.reshape(-1)]).transpose()
+
+    # Get the index of the closest surface point to each grid point.
+    _, NN_indices = KDTree(points, metric='euclidean').query(Q, k=1)
+
+    # The "naive" heuristic for reconstructing an implicit surface.
+    def dist_to_tangent_plane(q_i, v_i):
+        return normals[v_i].dot((Q[q_i] - points[v_i]).T)
+
+    IF = np.empty(X.shape)
+    for y in range(X.shape[0]):
+        for x in range(X.shape[1]):
+            for z in range(X.shape[2]):
+                q_i = y * X.shape[1]**2 + x * X.shape[0] + z
+                v_i = NN_indices[q_i][0]
+                IF[x][y][z] = dist_to_tangent_plane(q_i, v_i)
+
+    ################################################
+    # ================ END CODE ================== #
+    ################################################
+    return IF 
+
 def mlsReconstruction(points, normals, X, Y, Z):
     """
     surface reconstruction with an implicit function f(x,y,z) representing
@@ -113,44 +150,6 @@ def mlsReconstruction(points, normals, X, Y, Z):
     ################################################
 
     return IF 
-
-
-def naiveReconstruction(points, normals, X, Y, Z):
-    """
-    surface reconstruction with an implicit function f(x,y,z) representing
-    signed distance to the tangent plane of the surface point nearest to each 
-    point (x,y,z)
-    Args:
-        points :  points of the point cloud
-		normals:  normals of the point cloud
-		X,Y,Z  :  coordinates of grid vertices 
-    Returns:
-        IF     : implicit function sampled at the grid points
-    """
-
-
-    ################################################
-    # <================START CODE<================>
-    ################################################
-
-    # replace this random implicit function with your naive surface reconstruction implementation!
-    IF = np.random.rand(X.shape[0], X.shape[1], X.shape[2]) - 0.5
-
-    # this is an example of a kd-tree nearest neighbor search (adapt it accordingly for your task)
-	# use kd-trees to find nearest neighbors efficiently!
-	# kd-tree: https://en.wikipedia.org/wiki/K-d_tree
-    Q = np.array([X.reshape(-1), Y.reshape(-1), Z.reshape(-1)]).transpose()
-    tree = KDTree(points)
-    _, idx = tree.query(Q, k=2)  
-	
-    ################################################
-    # <================END CODE<================>
-    ################################################
-
-    return IF 
-
-
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Basic surface reconstruction')
