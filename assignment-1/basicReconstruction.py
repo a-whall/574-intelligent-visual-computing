@@ -38,15 +38,20 @@ def createGrid(points, resolution=64):
 
 def sphere(center, R, X, Y, Z):
     """
-    constructs an implicit function of a sphere sampled at grid coordinates X,Y,Z
+    Constructs an implicit function of a sphere sampled at grid coordinates X, Y, Z.
+
     Args:
         center: 3D location of the sphere center
-        R     : radius of the sphere
-        X,Y,Z : coordinates of grid vertices                      
-    Returns: 
+        R     : Radius of the sphere
+        X,Y,Z : coordinates of grid vertices
+
+    Returns:
         IF    : implicit function of the sphere sampled at the grid points
-    """    
-    IF = (X - center[0]) ** 2 + (Y - center[1]) ** 2 + (Z - center[2]) ** 2 - R ** 2 
+    """
+    # The implicit surface is a function that maps position to a distance from
+    # the surface. Any point for which this function is 0 lies on the implicit
+    # surface, any point at distance R from the center is on the surface.
+    IF = (X - center[0])**2 + (Y - center[1])**2 + (Z - center[2])**2 - R**2
     return IF
 
 def showMeshReconstruction(IF):
