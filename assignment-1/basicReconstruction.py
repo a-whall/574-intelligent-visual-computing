@@ -163,19 +163,16 @@ def mlsReconstruction(points, normals, X, Y, Z):
     return IF 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Basic surface reconstruction')
-    parser.add_argument('--file', type=str, default = "sphere.pts", help='input point cloud filename')
-    parser.add_argument('--method', type=str, default = "sphere",\
-                        help='method to use: mls (Moving Least Squares), naive (naive reconstruction), sphere (just shows a sphere)')
+    parser = argparse.ArgumentParser(description='Basic Surface Reconstruction')
+    parser.add_argument('--file', type=str, default="sphere.pts", help='Name of input file')
+    parser.add_argument('--method', type=str, default="", help='Method of reconstruction: [mls (Moving Least Squares), naive]')
     args = parser.parse_args()
 
-    #load the point cloud
     data = np.loadtxt(args.file)
     points = data[:, :3]
     normals = data[:, 3:6]
 
-    # create grid whose vertices will be used to sample the implicit function
-    X,Y,Z,max_dimensions,min_dimensions = createGrid(points, 64)
+    X, Y, Z, max_dimensions, min_dimensions = createGrid(points)
 
     if args.method == 'mls':
         print(f'Running Moving Least Squares reconstruction on {args.file}')
@@ -184,11 +181,9 @@ if __name__ == '__main__':
         print(f'Running naive reconstruction on {args.file}')
         IF = naiveReconstruction(points, normals, X, Y, Z)
     else:
-        # toy implicit function of a sphere - replace this code with the correct
-        # implicit function based on your input point cloud!!!
-        print(f'Replacing point cloud {args.file} with a sphere!')
-        center =  (max_dimensions + min_dimensions) / 2
-        R = max( max_dimensions - min_dimensions ) / 4
-        IF =  sphere(center, R, X, Y, Z)
+        print(f'No method argument. Replacing point cloud {args.file} with a sphere!')
+        center = (max_dimensions + min_dimensions) / 2
+        R = max(max_dimensions - min_dimensions) / 4
+        IF = sphere(center, R, X, Y, Z)
 
     showMeshReconstruction(IF)
