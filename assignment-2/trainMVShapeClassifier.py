@@ -6,33 +6,41 @@ import torch.optim
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
 from model import CNN
-from data_utils import *  
+from data_utils import *
 
 def trainMVShapeClassifier(dataset_path, cuda=False, verbose=False):
     """
-    this function trains a multi-view convnet for 3D shape classification
-    YOU HAVE TO MODIFY THIS FUNCTION!
+    This function trains a multi-view convnet for 3D shape classification.
 
-    dataset_path is the name of the folder that contains PNG images of
-    rendered 3D shapes. The folder should have the following structure:
-      => category_1 [folder]
-          => shape1_id [folder]
-              => shape1_id_001.png [grayscale image]
-              => shape1_id_002.png [grayscale image]
-                 ...
-          => shape2_id [folder]
-              => shape2_id_001.png [grayscale image]
-              => shape2_id_002.png [grayscale image]
-                 ...
-          => ...
-      => category_2 [folder]
-         ...
-    the function should return a trained convnet
+    Note: The dataset folder should have the following structure:
+
+    dataset/
+    ├─ train/
+    │  ├─ category-1/
+    │  │  ├─ shape-1_id/
+    │  │  │  ├─ shape-1_id_001.png
+    │  │  │  ├─ shape-1_id_002.png
+    │  │  │  └─ ...
+    │  │  ├─ shape-2_id/
+    │  │  │  ├─ shape-2_id_001.png
+    │  │  │  ├─ shape-2_id_002.png
+    │  │  │  └─ ...
+    │  │  └─ ...
+    │  └─ ...
+    └─ test/
+       └─ ...
+
+    Args:
+        dataset_path: The name of the folder that contains PNG images of rendered 3D shapes.
+        cuda: Set to true to use GPU (Must have the appropriate hardware and PyTorch installation).
+        verbose: Set to true to print the training loss values for each batch.
+    
+    Returns:
+        A trained convnet.
     """
 
     # Read all PNG images and their category information, and save them in numpy matrix.
-    # (could be commented out after first run
-    save_data(dataset_path)
+    save_data(dataset_path) # (May be commented out after first run)
 
     # Load saved numpy matrix
     data, info = load_data()
@@ -51,7 +59,8 @@ def trainMVShapeClassifier(dataset_path, cuda=False, verbose=False):
         print("Error Loading Data!")
         return
 
-    # An interactive plot showing how the loss function and classification error behave on the training and validation split during learning.
+    # An interactive plot showing how the loss function and classification error behave on
+    # the training and validation split during learning.
     fig, axes = plt.subplots(ncols=3, nrows=1)
     axes[0].set_title('Loss')
     axes[1].set_title('Top1 Error')
@@ -62,8 +71,10 @@ def trainMVShapeClassifier(dataset_path, cuda=False, verbose=False):
     
     # Model
     model     = CNN(num_classes=len(info['category_names']))
+
     if(cuda):
         model = model.cuda()
+
     criterion = nn.CrossEntropyLoss()
     learningRate = 0.001 
     numEpochs    = 20
@@ -77,9 +88,9 @@ def trainMVShapeClassifier(dataset_path, cuda=False, verbose=False):
 
     print("Training Starting..")
     for epoch in range(numEpochs):
-        ''' ======================================
-                      TRAIN SECTION
-        ====================================== '''
+        """======================================
+                    TRAIN SECTION
+        ======================================"""
         train_loss  = 0
         train_accuracy = []
         for i, batch in enumerate(data_loader):
@@ -112,9 +123,9 @@ def trainMVShapeClassifier(dataset_path, cuda=False, verbose=False):
         train_accuracy = np.mean(train_accuracy, axis=0)
 
 
-        ''' ======================================
-                   VALIDATION SECTION
-        ====================================== '''
+        """======================================
+                    VALIDATION SECTION
+        ======================================"""
         output_val     = model(Xval).squeeze()
         if(cuda):
             val_loss       = criterion(output_val, Yval).data.cpu().numpy()
