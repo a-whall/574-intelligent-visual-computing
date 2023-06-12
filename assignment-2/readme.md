@@ -40,4 +40,7 @@ To install the dataset:
 To run the model:
 - (On Unix or MacOS): `python3 run.py`
 - (On Windows): `py run.py`
-- Add the option `--help` to see program arguments.
+
+See `run.py` for how to load a pretrained model.
+
+Note: After the first run, the dataset will be cached in numpy gzip files. To use this data, you must uncomment line 43 of `trainMVShapeClassifier.py`.
