@@ -34,10 +34,6 @@ class CNN(nn.Module):
         nn.init.xavier_normal_(self.pconv2.weight)
         nn.init.xavier_normal_(self.fc_conv.weight)
 
-        nn.init.zeros_(self.conv1.bias)
-        nn.init.zeros_(self.conv2.bias)
-        nn.init.zeros_(self.conv3.bias)
-
         nn.init.zeros_(self.norm1.bias)
         nn.init.zeros_(self.norm2.bias)
         nn.init.zeros_(self.norm3.bias)
@@ -45,7 +41,7 @@ class CNN(nn.Module):
         nn.init.zeros_(self.pconv1.bias)
         nn.init.zeros_(self.pconv2.bias)
 
-        nn.init.zeros_(self.fc_conv)
+        nn.init.zeros_(self.fc_conv.bias)
 
     def forward(self, x):
 
