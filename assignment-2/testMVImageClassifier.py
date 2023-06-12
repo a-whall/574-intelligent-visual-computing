@@ -8,34 +8,46 @@ def testMVImageClassifier(dataset_path, model, info, pooling='mean', cuda=False,
 
     # save pytorch model to eval mode
     model.eval()
+
     if (cuda):
         model.cuda()
 
     test_err = 0
     count = 0
-    print(f"=>Testing ('{pooling}' pooling)...")
+    print(f"=> Testing ('{pooling}' pooling)...")
 
     # for each category
     for idx, c in enumerate(info['category_names']):
+
         category_full_dir = os.path.join(dataset_path,c)
-        shape_dirs        = listdir(category_full_dir)
-        print('=>Loading shape data: %s'%(c))
+        shape_dirs = listdir(category_full_dir)
+
+        print('=> Loading shape data: %s'%(c))
 
         # for each shape
         for s in shape_dirs:
-            if verbose: print('=>Loading shape data: %s %s'%(s, c))
+
+            if verbose:
+                print('=> Loading shape data: %s %s'%(s, c))
+
             views = listdir(os.path.join(category_full_dir, s))
             scores = np.zeros((len(views), len(info['category_names'])))
-            count  += 1
+            count += 1
 
             # for each view
             for i, v in enumerate(views):
+
                 image_full_filename = os.path.join(category_full_dir, s, v)
-                if 'png' not in image_full_filename : continue
-                if verbose: print(' => Loading image: %s ...'%image_full_filename)
-                im  = grayscale_img_load(image_full_filename)/255.
+
+                if 'png' not in image_full_filename:
+                    continue
+
+                if verbose:
+                    print(' => Loading image: %s ...'%image_full_filename)
+
+                im = grayscale_img_load(image_full_filename)/255.
                 im -= info['data_mean']
-                im  = Variable(torch.from_numpy(im.astype('float32')), requires_grad=False).unsqueeze(0)
+                im = Variable(torch.from_numpy(im.astype('float32')), requires_grad=False).unsqueeze(0)
 
                 # get predicted scores for each view
                 if (cuda):
