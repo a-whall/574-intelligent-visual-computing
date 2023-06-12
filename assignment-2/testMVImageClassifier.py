@@ -4,16 +4,16 @@ import torch
 from torch.autograd import Variable
 from data_utils import grayscale_img_load, listdir
 
-def testMVImageClassifier(dataset_path, model, info, pooling = 'mean', cuda=False, verbose=False):
+def testMVImageClassifier(dataset_path, model, info, pooling='mean', cuda=False, verbose=False):
 
     # save pytorch model to eval mode
     model.eval()
     if (cuda):
         model.cuda()
-    
+
     test_err = 0
     count = 0
-    print("=>Testing...")
+    print(f"=>Testing ('{pooling}' pooling)...")
 
     # for each category
     for idx, c in enumerate(info['category_names']):
@@ -25,7 +25,7 @@ def testMVImageClassifier(dataset_path, model, info, pooling = 'mean', cuda=Fals
         for s in shape_dirs:
             if verbose: print('=>Loading shape data: %s %s'%(s, c))
             views = listdir(os.path.join(category_full_dir, s))
-            scores = np.zeros((len(views),len(info['category_names'])))
+            scores = np.zeros((len(views), len(info['category_names'])))
             count  += 1
 
             # for each view
@@ -36,6 +36,7 @@ def testMVImageClassifier(dataset_path, model, info, pooling = 'mean', cuda=Fals
                 im  = grayscale_img_load(image_full_filename)/255.
                 im -= info['data_mean']
                 im  = Variable(torch.from_numpy(im.astype('float32')), requires_grad=False).unsqueeze(0)
+
                 # get predicted scores for each view
                 if (cuda):
                     im = im.cuda()
@@ -43,18 +44,24 @@ def testMVImageClassifier(dataset_path, model, info, pooling = 'mean', cuda=Fals
                 else:
                     scores[i, :] = model(im).detach().numpy().squeeze()
 
-            ''' 
+            '''
             YOUR CODE GOES HERE
             1) Get category predictions per shape and test error averaged over all the test shapes.
             2) Implement 2 strategies: 1) mean and 2) max view-pooling by specifying input arg 'pooling', like
                >> pooling = 'mean' or pooling = 'max'
-            
-             '''
-            predicted_label = 0 # obviously change this
+            '''
+            if pooling == 'max':
+                # Max view-pooling: choose the highest category value over all views
+                predicted_label = np.argmax(np.amax(scores, axis=0))
+            else:
+                # Mean view-pooling: average the scores of each category over all views
+                predicted_label = np.argmax(np.mean(scores, axis=0))
+
             if predicted_label != idx:
                 test_err += 1
 
-            if verbose: print('predicted label:  %s, ground-truth label: %s\n'%(info['category_names'][predicted_label] ,c))
+            if verbose:
+                print('predicted label:  %s, ground-truth label: %s\n'%(info['category_names'][predicted_label] ,c))
 
     test_err = test_err / count
     print('Test error: %f%%\n'%(test_err * 100))
