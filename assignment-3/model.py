@@ -1,5 +1,5 @@
 import torch
-from torch.nn import Sequential as Seq, Linear as Lin, LeakyReLU, GroupNorm
+from torch.nn import Sequential as Seq, Linear as Lin, LeakyReLU, GroupNorm, functional
 
 # the "MLP" block that you will use the in the PointNet and CorrNet modules you will implement
 # This block is made of a linear transformation (FC layer), 
@@ -72,18 +72,26 @@ class PointNet(torch.nn.Module):
 #   Transform this matrix into the correspondence mask Nx1 through a MLP followed by a linear transformation
 # **** YOU SHOULD CHANGE THIS MODULE, CURRENTLY IT IS INCORRECT ****
 class CorrNet(torch.nn.Module):
+
     def __init__(self, num_output_features, train_corrmask):        
         super(CorrNet, self).__init__()
         self.train_corrmask = train_corrmask
         self.pointnet_share = PointNet(3, num_output_features)
-        self.mlp = MLP([3, 1]) # you won't use this, delete it, this is there just for the code to run
+        self.mlp = MLP([2*num_output_features+1, 64])
+        self.lin = Lin(64, 1)
 
-    def forward(self, vtx, pts):
-        out_vtx = self.pointnet_share(vtx)
-        out_pts = self.pointnet_share(pts)
-        if self.train_corrmask:            
-            out_corrmask = self.mlp(vtx) # you won't use this, delete it, this is there just for the code to run
+    def forward(self, vts, pts):
+        out_vts = functional.normalize(self.pointnet_share(vts), p=2, dim=1)
+        out_pts = functional.normalize(self.pointnet_share(pts), p=2, dim=1)
+        if self.train_corrmask:
+            cos_similarity_matrix = out_vts @ out_pts.T
+            similarity, n = torch.max(cos_similarity_matrix, dim=1)      # Get the max and argmax over the vertices.
+            x = torch.index_select(out_pts, dim=0, index=n)              # Filter and reorder output points to match output vertices.
+            x = torch.cat((x, out_vts, similarity.unsqueeze(-1)), dim=1) # Build the input for the final MLP.
+            x = self.mlp(x)                                              # Do MLP for all feature representations of the most similar (p,v) pairs.
+            x = self.lin(x)                                              # Do a final transformation to the desired output feature space.
+            out_corrmask = x
         else:
             out_corrmask = None
 
-        return out_vtx, out_pts, out_corrmask
+        return out_vts, out_pts, out_corrmask
