@@ -18,3 +18,11 @@ Euler angle rotations for train_corrmask on Ep99.
 -------------------------------------------------
 Average fitted rotation: [-2.30835676, 48.71187352,  -7.54008695]
 Average fitted rotation: [ 2.56059308,  0.96674032, -10.69385879]
+
+Professor Note:
+---------------
+Here is some reasonable test accuracy: 
+≈50% for train_corrmask=0, distance_threshold=0.01
+≈90% for train_corrmask=0, distance_threshold=0.02
+≈99% for train_corrmask=0, distance_threshold=0.04
+≈70% for train_corrmask=1.
