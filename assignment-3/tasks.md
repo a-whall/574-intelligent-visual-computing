@@ -73,7 +73,7 @@ Change the code in "train.py" (function NTcrossentropy) to implement a loss for 
 
 ---
 
-# Task D (10%)
+## Task D (10%)
 
 ---
 
@@ -81,7 +81,7 @@ At each training epoch, the starter code evaluates the accuracy of correspondenc
 
 ---
 
-## Task E [ 25% ]
+## Task E (25%)
 
 ---
 
