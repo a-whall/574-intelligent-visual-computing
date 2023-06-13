@@ -170,12 +170,38 @@ def NTcrossentropy(vtx_feature, pts_feature, corr, tau=0.01):
     return loss
 
 # function to estimate a rotation matrix to align the vertices and the points based on the predicted reliable correspondences.
-# **** YOU SHOULD CHANGE THIS FUNCTION ****
-def fit_rotation(vtx, pts, vtx_feature, pts_feature, corrmask):
-    R = Rotation.from_matrix([[0,-1,0], [1, 0, 0], [0, 0, 1]])
+def fit_rotation(vts, pts, vts_feature, pts_feature, corrmask):
+    # Recreate cosine similarity matrix (feature vectors assumed to already be normalized by the forward pass of the corrnet module).
+    similarity_matrix = vts_feature @ pts_feature.T
+
+    # Get the indices of the best pt match for each vt based on the similarity matrix.
+    _, vt_match_indices = torch.max(similarity_matrix, dim=1)
+
+    # Get the indices of vts that have correspondences (with confidence > 0.5 in the corrmask), this determines M, the number of matched (v,p) pairs.
+    indices_of_vts_with_corr = [i for i,c in enumerate(corrmask) if c > 0.5]
+
+    # Initialize P hat with the vts that have correspondences.
+    P_hat = vts[indices_of_vts_with_corr]
+
+    # Get the indices of pts that correspond to the selected vts.
+    corr_pts = vt_match_indices[indices_of_vts_with_corr]
+
+    # Initialize Q hat with pts that correspond to vts in the same order as P hat.
+    Q_hat = pts[corr_pts]
+
+    # Adjust all the verts and points by their centroid.
+    P_hat -= torch.mean(P_hat, dim=0)
+    Q_hat -= torch.mean(Q_hat, dim=0)
+
+    # Solve Procrustes problem using algorithm from the slides.
+    s = P_hat.T @ Q_hat
+    u, d, vT = torch.linalg.svd(s)
+    if torch.linalg.det(vT) < 0:
+        vT[2] *= -1
+
+    # .cpu() makes things run slow! I believe it's unavoidable since we must send data from GPU to CPU to accomodate starter code.
+    R = Rotation.from_matrix((u @ vT).cpu())
     return R.as_quat()
-    # keep the following line, transform the estimated to rotation matrix to a quaternion
-    # the starter code handles the rest
     
 
 # main function, read carefully to understand the code
