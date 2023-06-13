@@ -32,12 +32,23 @@ def MLP(channels, enable_group_norm=True):
 # - a MLP followed by a linear transformation layer that transform this concatenated descriptor into the output 32-dimensional descriptor x_i
 # **** YOU SHOULD CHANGE THIS MODULE, CURRENTLY IT IS INCORRECT ****
 class PointNet(torch.nn.Module):
+
     def __init__(self, num_input_features, num_output_features):
         super(PointNet, self).__init__()
-        self.mlp = MLP([num_input_features, num_output_features])
+        self.mlp1 = MLP([num_input_features, 32, 64, 128])
+        self.mlp2 = MLP([128, 128], enable_group_norm=False)
+        self.mlp3 = MLP([256, 128, 64], enable_group_norm=False)
+        self.lin = Lin(64, num_output_features)
 
     def forward(self, x):
-        x = self.mlp(x)
+        N = x.shape[0]               # The total number of points/verts.
+        f = self.mlp1(x)             # First MLP to get 128-dimensional feature representation for each point/vert.
+        x = self.mlp2(f)             # Second MLP to get 128-dimensional per-point feature representation.
+        x = torch.max(x, dim=0)[0]   # Take max over 128 feature dimensions to get a global descriptor for the mesh/cloud.
+        x = x.repeat((N, 1))         # Repeat global descriptor N times.
+        x = torch.cat((f, x), dim=1) # Augment each of the original per-point feature representations with a copy of the global descriptor.
+        x = self.mlp3(x)             # Third MLP to get 64 dimensional per-point descriptor (but each point now has global information).
+        x = self.lin(x)              # Finally transform the output to the desired number of per-point output descriptors.
         return x
 
 
