@@ -1,18 +1,19 @@
 # Getting Started:
 
 ### 0. Navigate to the assignment-1/ directory.
-- `cd 574-intelligent-visual-computing/assignment-1`
+- `cd assignment-1`
 
 ### 1. Ensure Python version 3.10 is installed on your system.
-- [Official Download](https://www.python.org/downloads/)
+- (On Unix or MacOS): `brew install python@3.10`
+- (On Windows): [Official Download](https://www.python.org/downloads/)
 
 ### 2. Create a new Python virtual environment with Python 3.10.
-- (On Unix or MacOS): `python3.10 -m venv venv`
-- (On Windows): `py -3.10 -m venv venv`
+- (On Unix or MacOS): `python3.10 -m venv .env`
+- (On Windows): `py -3.10 -m venv .env`
 
 ### 3. Activate the virtual environment.
-- (On Unix or MacOS): `source venv/bin/activate`
-- (On Windows): `.\venv\Scripts\activate`
+- (On Unix or MacOS): `source .env/bin/activate`
+- (On Windows): `.env\Scripts\activate`
 
 ### 4. Install the necessary Python packages.
 - `pip install -r requirements.txt`
