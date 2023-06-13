@@ -158,11 +158,13 @@ def test(test_pts_filelist, model, args, save_results):
 #        a Mx32 per-point feature vector in the input pount cloud,
 #        a corr matrix Kx2 that stores K ground-truth pairs of corresponding vertices-points
 # the function should output the normalized temperature-scaled cross entropy loss
-# **** YOU SHOULD CHANGE THIS FUNCTION, CURRENTLY IT IS INCORRECT ****
 def NTcrossentropy(vtx_feature, pts_feature, corr, tau=0.01):
     cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='mean')    
     corr_vtx_feature = vtx_feature[corr[:, 0]]    
-    prod = torch.randn( corr_vtx_feature.size(0), pts_feature.size(0), requires_grad=True ).to(device)
+    # This line is all that I changed. It computes the denominators of the given loss function
+    # and scales the sums by the temperature constant. The cross_entropy_loss function
+    # provided handles the rest of the loss calculation.
+    prod = 1/tau * (corr_vtx_feature @ pts_feature.T)
     label = corr[:, 1]
     loss = cross_entropy_loss(prod, label)
     return loss
