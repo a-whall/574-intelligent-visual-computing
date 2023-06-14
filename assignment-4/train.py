@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 from model import Decoder
-from utils import normalize_pts, normalize_normals, SdfDataset, mkdir_p, isdir, showMeshReconstruction
+from utils import SdfDataset, mkdir_p, isdir, showMeshReconstruction, create_training_dataset, split_train_val, L1_loss
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -18,44 +18,53 @@ def save_checkpoint(state, is_best, checkpoint_folder='checkpoints/', filename='
 
 
 def train(dataset, model, optimizer, args):
-    model.train()  # switch to train mode
+
+    model.train()
+
+    Δ = args.clamping_distance
     loss_sum = 0.0
     loss_count = 0.0
     num_batch = len(dataset)
+
     for i in range(num_batch):
-        data = dataset[i]  # a dict
+        batch = dataset[i]
+        s = batch['gt_sdf'].to(device)
+        f_p = model(batch['xyz'].to(device))
+        loss = torch.sum(L1_loss(f_p, s, Δ)) # Note L1_loss defined in utils.py:71
+        model.zero_grad()
+        loss.backward()
+        optimizer.step()
+        loss_sum += loss
+        loss_count += batch['xyz'].shape[0]
 
-        # **** YOU SHOULD ADD TRAINING CODE HERE, CURRENTLY IT IS INCORRECT ****
-        xyz_tensor = data['xyz'].to(device)
-        loss_sum += 1. * xyz_tensor.shape[0]
-        loss_count += xyz_tensor.shape[0]
-        # ***********************************************************************
-
-    return loss_sum / loss_count
+    return loss_sum.item() / loss_count
 
 
-# validation function
 def val(dataset, model, optimizer, args):
-    model.eval()  # switch to test mode
+
+    model.eval()
+
+    Δ = args.clamping_distance
     loss_sum = 0.0
     loss_count = 0.0
     num_batch = len(dataset)
+
     for i in range(num_batch):
-        data = dataset[i]  # a dict
-
-        # **** YOU SHOULD ADD TRAINING CODE HERE, CURRENTLY IT IS INCORRECT ****
+        batch = dataset[i]
         with torch.no_grad():
-            xyz_tensor = data['xyz'].to(device)
-            loss_sum += 1. * xyz_tensor.shape[0]
-            loss_count += xyz_tensor.shape[0]
-        # ***********************************************************************
+            f_p = model(batch['xyz'].to(device))
+            s = batch['gt_sdf'].to(device)
+            loss_sum += torch.sum(L1_loss(f_p, s, Δ)) # Note L1_loss defined in utils.py:71
+            loss_count += batch['xyz'].shape[0]
 
-    return loss_sum / loss_count
+    return loss_sum.item() / loss_count
 
 
-# testing function
+
 def test(dataset, model, args):
-    model.eval()  # switch to test mode
+
+    model.eval()
+
     num_batch = len(dataset)
     number_samples = dataset.number_samples
     grid_shape = dataset.grid_shape
@@ -72,40 +81,37 @@ def test(dataset, model, args):
         pred_sdf = pred_sdf_tensor.cpu().squeeze().numpy()
         IF[start_idx:end_idx] = pred_sdf
         start_idx = end_idx
+
     IF = np.reshape(IF, grid_shape)
 
     verts, triangles = showMeshReconstruction(IF)
+
     with open('test.obj', 'w') as outfile:
         for v in verts:
-            outfile.write( "v " + str(v[0]) + " " + str(v[1]) + " " + str(v[2]) + "\n" )
+            outfile.write(f"v {v[0]} {v[1]} {v[2]}\n")
         for f in triangles:
-            outfile.write( "f " + str(f[0]+1) + " " + str(f[1]+1) + " " + str(f[2]+1) + "\n" )            
-    outfile.close()
+            outfile.write(f"f {f[0]+1} {f[1]+1} {f[2]+1}\n")            
+
     return
 
 def main(args):
+
     best_loss = 2e10
     best_epoch = -1
 
-    # create checkpoint folder
     if not isdir(args.checkpoint_folder):
         print("Creating new checkpoint folder " + args.checkpoint_folder)
         mkdir_p(args.checkpoint_folder)
 
-    #default architecture in DeepSDF
-    model = Decoder(args)
+    model = Decoder(args).to(device)
 
+    print("=> Using " + device.type + " device.")
 
-    model.to(device)
-    print("=> Will use the (" + device.type + ") device.")
-
-    # cudnn will optimize execution for our network
     cudnn.benchmark = True
 
     if args.evaluate:
-        print("\nEvaluation only")
         path_to_resume_file = os.path.join(args.checkpoint_folder, args.resume_file)
-        print("=> Loading training checkpoint '{}'".format(path_to_resume_file))
+        print(f"\nEvaluation only\n=> Loading training checkpoint '{path_to_resume_file}'")
         checkpoint = torch.load(path_to_resume_file)
         model.load_state_dict(checkpoint['state_dict'])
         test_dataset = SdfDataset(phase='test', args=args)
@@ -113,37 +119,39 @@ def main(args):
         return
 
     optimizer = torch.optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.weight_decay)
-    print("=> Total params: %.2fM" % (sum(p.numel() for p in model.parameters()) / 1000000.0))
+    print(f"=> Total params: {sum(p.numel() for p in model.parameters())/1e6:.2f}M")
 
-    # create dataset
-    input_point_cloud = np.loadtxt(args.input_pts)
-    training_points = normalize_pts(input_point_cloud[:, :3])
-    training_normals = normalize_normals(input_point_cloud[:, 3:])
-    n_points = training_points.shape[0]
-    print("=> Number of points in input point cloud: %d" % n_points)
-
-    # split dataset into train and validation set by args.train_split_ratio
-    n_points_train = int(args.train_split_ratio * n_points)
-    full_indices = np.arange(n_points)
-    np.random.shuffle(full_indices)
-    train_indices = full_indices[:n_points_train]
-    val_indices = full_indices[n_points_train:]
-    train_dataset = SdfDataset(points=training_points[train_indices], normals=training_normals[train_indices], args=args)
-    val_dataset = SdfDataset(points=training_points[val_indices], normals=training_normals[val_indices], phase='val', args=args)
-
-    # perform training!
+    dataset = create_training_dataset(file=args.input_pts)
+    print(f"=> Number of points in input point cloud: {dataset['points'].shape[0]}")
+    
+    split = split_train_val(dataset, args.train_split_ratio)
+    train_dataset = SdfDataset(points=split['train_points'], normals=split['train_normals'], args=args)
+    val_dataset = SdfDataset(points=split['val_points'], normals=split['val_normals'], phase='val', args=args)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, args.schedule, gamma=args.gamma)
 
     for epoch in range(args.start_epoch, args.epochs):
+
         train_loss = train(train_dataset, model, optimizer, args)
         val_loss = val(val_dataset, model, optimizer, args)
+
         scheduler.step()
+
         is_best = val_loss < best_loss
+
         if is_best:
             best_loss = val_loss
             best_epoch = epoch
-        save_checkpoint({"epoch": epoch + 1, "state_dict": model.state_dict(), "best_loss": best_loss, "optimizer": optimizer.state_dict()},
-                        is_best, checkpoint_folder=args.checkpoint_folder)
+
+        save_checkpoint(
+            {
+                "epoch": epoch + 1,
+                "state_dict": model.state_dict(),
+                "best_loss": best_loss,
+                "optimizer": optimizer.state_dict()
+            },
+            is_best,
+            checkpoint_folder=args.checkpoint_folder
+        )
         print(f"Epoch {epoch+1:d}. train_loss: {train_loss:.8f}. val_loss: {val_loss:.8f}. Best Epoch: {best_epoch+1:d}. Best val loss: {best_loss:.8f}.")
 
 
@@ -170,11 +178,13 @@ if __name__ == "__main__":
     parser.add_argument("--sample_std", default=0.05, type=float, help="we perturb each surface point along normal direction with mean-zero Gaussian noise with the given standard deviation")
     parser.add_argument("--clamping_distance", default=0.1, type=float, help="clamping distance for sdf")
 
-	
     # various options for testing and evaluation
     parser.add_argument("--test_batch", default=2048, type=int, help="Batch size for testing")
     parser.add_argument("--grid_N", default=128, type=int, help="construct a 3D NxNxN grid containing the point cloud")
     parser.add_argument("--max_xyz", default=1.0, type=float, help="largest xyz coordinates")
+
+    # custom memory usage argument
+    parser.add_argument("-m", "--track_memory", action="store_true", help="Use this flag to get a feel for the memory usage of your model")
 
     print(parser.parse_args())
     main(parser.parse_args())
