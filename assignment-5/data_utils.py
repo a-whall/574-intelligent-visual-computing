@@ -1,5 +1,6 @@
 import torch
 import os
+import errno
 import pickle as pickle
 import numpy as np
 import gzip
@@ -12,6 +13,16 @@ from huggingface_hub import hf_hub_download
 from zipfile import ZipFile
 from re import search
 from shutil import rmtree
+
+def mkdir_p(dir_path):
+    try:
+        os.makedirs(dir_path)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+
+def isdir(dirname):
+    return os.path.isdir(dirname)
 
 def save_checkpoint(model, epoch):
     """save model checkpoint"""
