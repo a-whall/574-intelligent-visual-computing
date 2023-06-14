@@ -1,0 +1,4 @@
+numpy
+Pillow
+huggingface_hub
+matplotlib
