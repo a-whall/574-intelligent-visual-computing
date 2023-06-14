@@ -67,20 +67,32 @@ def trainARImage(train_dataset_path, val_dataset_path, verbose=False, data_npy_e
 
     print("Starting training...")
     for epoch in range(numEpochs):
-        train_loss  = 0
+
+        train_loss = 0
         val_loss = 0
+
         model.train()
         for i, batch in enumerate(data_loader):
-            
-             # WRITE CODE HERE TO IMPLEMENT 
-             # THE FORWARD PASS AND BACKPROPAGATION
-             # FOR EACH PASS ALONG WITH THE L1 LOSS COMPUTATION
-
+            # WRITE CODE HERE TO IMPLEMENT, THE FORWARD PASS AND BACKPROPAGATION, FOR EACH PASS ALONG WITH THE L1 LOSS COMPUTATION
+            input_images = batch[0].to(device)
+            this_batch_size = input_images.size(0)
+            target_images = input_images
+            optimizer.zero_grad()
+            output_images = model(input_images)
+            loss = criterion(output_images, target_images)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item() * this_batch_size
             if verbose:
                 print('Epoch [%d/%d], Iter [%d/%d], Training loss: %.4f' %(epoch+1, numEpochs, i+1, len(train_imgs)//batch_size, train_loss/(i+1)))
+        train_loss /= len(train_imgs)
 
         # WRITE CODE HERE TO EVALUATE THE LOSS ON THE VALIDATION DATASET
         model.eval()
+        with torch.no_grad():
+            output_val_imgs = model(val_imgs)
+            loss = criterion(val_imgs, output_val_imgs)
+            val_loss = loss.item() / val_imgs.size(0)
 
         # show the plots
         if epoch != 0:            
@@ -102,6 +114,6 @@ def trainARImage(train_dataset_path, val_dataset_path, verbose=False, data_npy_e
         save_checkpoint(model, epoch+1)
 
         # save loss figures
-        plt.savefig("error-plot.png")
+        plt.savefig("errorplot.png")
 
     return model, info
