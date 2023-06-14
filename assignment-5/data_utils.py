@@ -5,6 +5,13 @@ import numpy as np
 import gzip
 import time
 from PIL import Image
+os.environ['HF_HUB_DISABLE_SYMLINKS_WARNING'] = '1'
+from argparse import ArgumentParser
+from getpass import getpass
+from huggingface_hub import hf_hub_download
+from zipfile import ZipFile
+from re import search
+from shutil import rmtree
 
 def save_checkpoint(model, epoch):
     """save model checkpoint"""
@@ -118,3 +125,42 @@ def save_data(train_dataset_path, val_dataset_path, verbose = False):
     print("Time Taken %.3f sec"%(time.time()-t))
 
     return
+
+
+
+def fetch_main(user_token):
+
+    downloaded_path = hf_hub_download(
+        repo_id="awhall/autoregressive-completion",
+        repo_type="dataset",
+        filename="dataset.zip",
+        cache_dir="./",
+        use_auth_token=user_token
+    )
+
+    with ZipFile(downloaded_path, 'r') as zip:
+        zip.extractall("./")
+
+    match = search(r"(\.\/[a-zA-Z0-9-_]+)[/\\]", downloaded_path)
+
+    if match is not None:
+        root_hf_download_dir = match.group(1)
+        rmtree(root_hf_download_dir)
+    else:
+        print("Error: Couldn't delete the downloaded directory containing the zip file.")
+
+
+
+if __name__ == "__main__":
+
+    parser = ArgumentParser(description='utils')
+    parser.add_argument("--fetch-dataset", action="store_true", help="Download the dataset from huggingface.")
+    
+    args = parser.parse_args()
+
+    if args.fetch_dataset:
+        if os.path.isdir("dataset"):
+            print("It seems like you've already downloaded the dataset.\nA directory named 'dataset' already exists.\nYou must delete the 'dataset' directory and then run this script again to re-download the dataset.")
+            exit()
+        access_token = getpass("Enter your huggingface access token: ")
+        fetch_main(access_token)
