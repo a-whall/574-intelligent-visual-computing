@@ -1,7 +1,8 @@
 import numpy as np
 import torch
 from torch.autograd import Variable
-from data_utils import *  
+from data_utils import *
+import os
 
 def testARImage(test_dataset_path, model, info, verbose=True):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")    
@@ -22,6 +23,10 @@ def testARImage(test_dataset_path, model, info, verbose=True):
     destroy_part_y2 = resy // 2 + resy // 10
     rec_error = 0. # will store reconstruction error
 
+    # Make sure the results directory exists.
+    if not isdir("./results"):
+        mkdir_p("./results")
+
     for s in range(num_test_images):
         image_full_filename = os.path.join(test_dataset_path, test_image_names[s])
         print('Loading TEST image %d/%d: %s'%(s+1, num_test_images, image_full_filename))                
@@ -40,6 +45,11 @@ def testARImage(test_dataset_path, model, info, verbose=True):
 
         # WRITE CODE HERE TO FIX THE DESTROYED IMAGE REGION
         # USING AN AUTOREGRESSIVE APPROACH
+        with torch.no_grad():
+            for j in range(destroy_part_y1, destroy_part_y2):
+                for i in range(destroy_part_x1, destroy_part_x2):
+                    output = model(rec_im)
+                    rec_im[:, :,destroy_part_x1:i+1, destroy_part_y1:j+1] = output[:, :, destroy_part_x1:i+1, destroy_part_y1:j+1]
 
         # measure the reconstruction error        
         diff_im = rec_im[0, 0, destroy_part_x1:destroy_part_x2, destroy_part_y1:destroy_part_y2] - im[0,  destroy_part_x1:destroy_part_x2, destroy_part_y1:destroy_part_y2]
@@ -51,7 +61,7 @@ def testARImage(test_dataset_path, model, info, verbose=True):
         rec_im = rec_im.squeeze()
         rec_im = rec_im.cpu().detach().numpy()
         final_img = Image.fromarray(np.uint8(rec_im *255.))
-        final_img.save(f'{test_image_names[s][:-4]}-rec.jpg', quality=100)
+        final_img.save(f'results/{test_image_names[s][:-4]}-rec.jpg', quality=100)
         
     avg_rec_error = rec_error / num_test_images
     print('Avg rec error %f \n'%(avg_rec_error))
