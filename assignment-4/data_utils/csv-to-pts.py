@@ -52,7 +52,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--output_directory",
-        default="data",
+        default="../data",
         help="Name of directory to store the generated pts file."
     )
     main(parser.parse_args())
