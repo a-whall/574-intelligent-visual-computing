@@ -1,4 +1,5 @@
 import torch.nn as nn
+from torch.nn import Sequential as Seq
 
 class MaskedCNN(nn.Conv2d):
     """
@@ -33,13 +34,29 @@ class PixelCNN(nn.Module):
 
     def __init__(self):
         super(PixelCNN, self).__init__()
-
-        # WRITE CODE HERE TO IMPLEMENT THE MODEL STRUCTURE
-
-        self.conv = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=1)
-        self.sigmoid = nn.Sigmoid()
+        self.block1 = Seq(
+            MaskedCNN('A', in_channels=1, out_channels=16, kernel_size=3, stride=1, dilation=3, padding=3, padding_mode='reflect'),
+            nn.BatchNorm2d(16),
+            nn.LeakyReLU(negative_slope=0.001)
+        )
+        self.block2 = Seq(
+            MaskedCNN('B', in_channels=16, out_channels=16, kernel_size=3, stride=1, dilation=3, padding=3, padding_mode='reflect'),
+            nn.BatchNorm2d(16),
+            nn.LeakyReLU(negative_slope=0.001)
+        )
+        self.block3 = Seq(
+            MaskedCNN('B', in_channels=16, out_channels=16, kernel_size=3, stride=1, dilation=3, padding=3, padding_mode='reflect'),
+            nn.BatchNorm2d(16),
+            nn.LeakyReLU(negative_slope=0.001)
+        )
+        self.block4 = Seq(
+            nn.Conv2d(in_channels=16, out_channels=1, kernel_size=1),
+            nn.Sigmoid()
+        )
 
     def forward(self, x):
-
-        # WRITE CODE HERE TO IMPLEMENT THE FORWARD PASS
-        return self.conv(self.sigmoid(x))
+        x = self.block1(x)
+        x = self.block2(x)
+        x = self.block3(x)
+        x = self.block4(x)
+        return x
